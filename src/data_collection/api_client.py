@@ -1,6 +1,9 @@
 import os
 from typing import Any, Dict, List, Optional
+
 import requests
+
+from src.utils.cache import cache_get, cache_set
 
 BASE_URL = "https://api.football-data.org/v4"
 
@@ -28,17 +31,20 @@ def _get(path: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
 
 # 1) Competitions
 def get_competitions() -> List[Dict[str, str]]:
-    # MVP: returnera bara de ligor ni stödjer
     return [{"code": code, "name": name} for code, name in SUPPORTED_COMPETITIONS.items()]
 
-# 2) Standings
+# 2) Standings (cached)
 def get_standings(competition_code: str) -> List[Dict[str, Any]]:
+    cache_key = f"standings_{competition_code}"
+    cached = cache_get(cache_key, ttl_seconds=600)  # 10 min
+    if cached is not None:
+        return cached
+
     data = _get(f"/competitions/{competition_code}/standings")
     standings = data.get("standings", [])
     if not standings:
         return []
 
-    # Troligen finns tabellen i standings[0]["table"]
     table = standings[0].get("table", [])
     rows: List[Dict[str, Any]] = []
     for row in table:
@@ -58,13 +64,21 @@ def get_standings(competition_code: str) -> List[Dict[str, Any]]:
             "goals_against": row.get("goalsAgainst"),
             "goal_difference": row.get("goalDifference"),
         })
+
+    cache_set(cache_key, rows)
     return rows
 
-# 3) Teams in a league
+# 3) Teams in a league (cached)
 def get_teams(competition_code: str) -> List[Dict[str, Any]]:
+    cache_key = f"teams_{competition_code}"
+    cached = cache_get(cache_key, ttl_seconds=3600)  # 1 hour
+    if cached is not None:
+        return cached
+
     data = _get(f"/competitions/{competition_code}/teams")
     teams = data.get("teams", [])
-    return [{
+
+    result = [{
         "team_id": t.get("id"),
         "name": t.get("name"),
         "shortName": t.get("shortName"),
@@ -72,11 +86,14 @@ def get_teams(competition_code: str) -> List[Dict[str, Any]]:
         "crest": t.get("crest"),
     } for t in teams]
 
-# 4) Matches for a team
+    cache_set(cache_key, result)
+    return result
+
+# 4) Matches for a team (no cache yet)
 def get_team_matches(
     team_id: int,
     limit: int = 10,
-    status: Optional[str] = None,   # "FINISHED" / "SCHEDULED"
+    status: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     params: Dict[str, Any] = {}
     if status:
