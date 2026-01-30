@@ -13,15 +13,15 @@ class Match:
         away_team: Team,
         score: Dict[str, Dict[str, Dict[int]]],
     ):
-        self_id: int = match_id
+        self.match_id: int = match_id
 
 
-        self.utc_date = datetime = datetime.fromisoformat(
+        self.utc_date = datetime.fromisoformat(
             utc_date.replace("Z", "+00:00")
         )
 
         self.status = status
-        self.macthday = matchday
+        self.matchday = matchday
         self.home_team = home_team
         self.away_team = away_team
 
