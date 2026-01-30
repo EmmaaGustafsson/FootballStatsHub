@@ -1,7 +1,7 @@
 import json
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 CACHE_DIR = Path("data/cache")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -10,7 +10,7 @@ def _cache_path(key: str) -> Path:
     safe = "".join(c if c.isalnum() or c in "-_." else "_" for c in key)
     return CACHE_DIR / f"{safe}.json"
 
-def cache_get(key: str, ttl_seconds: int) -> Any | None:
+def cache_get(key: str, ttl_seconds: int) -> Optional[Any]:
     path = _cache_path(key)
     if not path.exists():
         return None
