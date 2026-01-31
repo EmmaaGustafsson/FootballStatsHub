@@ -66,30 +66,36 @@ class Player:
         return self.display_position == "Forward"
         
     @classmethod
-    def from_api_squad(cls, data: dict) -> 'Player':
-    
+    def from_api_squad(cls, data: dict) -> "Player":
+
+        player_id = data.get("id", None)
+        if player_id is None:
+            player_id = data.get("player_id", None)
+
+        player_id = player_id if isinstance(player_id, int) else 0
+
         return cls(
-            player_id=data['id'],
-            name=data['name'],
-            position=data.get('position', 'Unknown'),
-            nationality=data.get('nationality', ''),
-            date_of_birth=data.get('dateOfBirth'),
-            shirt_number=data.get('shirtNumber')
+            player_id=player_id,
+            name=data.get("name", ""),
+            position=data.get("position", "Unknown"),
+            nationality=data.get("nationality", ""),
+            date_of_birth=data.get("dateOfBirth") or data.get("date_of_birth"),
+            shirt_number=data.get("shirtNumber") or data.get("shirt_number"),
         )
-    
+
     def to_dict(self) -> dict:
         return {
-            'player_id': self.player_id,
-            'name': self.name,
-            'position': self.position,
-            'display_position': self.display_position,  
-            'nationality': self.nationality,
-            'date_of_birth': self.date_of_birth,
-            'age': self.age,                             
-            'shirt_number': self.shirt_number,
-            'display_number': self.display_number       
+            "player_id": self.player_id,
+            "name": self.name,
+            "position": self.position,
+            "display_position": self.display_position,
+            "nationality": self.nationality,
+            "date_of_birth": self.date_of_birth,
+            "age": self.age,
+            "shirt_number": self.shirt_number,
+            "display_number": self.display_number,
         }
-    
+
     def __repr__(self) -> str:
         number = self.display_number
-        return f"Player(name='{self.name}', position='{self.position}', {number})"
+        return f"Player(name='{self.name}', position='{self.position}', {number})"    
