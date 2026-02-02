@@ -1,5 +1,7 @@
 import pandas as pd
 import streamlit as st
+from datetime import datetime, timedelta, timezone
+
 
 from src.data_collection.api_client import (
     ApiClientError,
@@ -107,8 +109,8 @@ tab1, tab2, tab3 = st.tabs(["📊 Tabell", "🏟 Lag", "🥇 Toppskyttar"])
 
 with tab1:
     df = pd.DataFrame(standings)
-    df_view = df[
-        [
+
+        cols = [
             "position",
             "team_name",
             "played",
@@ -118,22 +120,38 @@ with tab1:
             "goal_difference",
             "points",
         ]
-    ].rename(
-        columns={
-            "position": "#",
-            "team_name": "Lag",
-            "played": "Spelade",
-            "won": "V",
-            "draw": "O",
-            "lost": "F",
-            "goal_difference": "MS",
-            "points": "Poäng",
-        }
-    )
+        if "crest" in df.columns:
+            cols.insert(1, "crest")  # insert logo 
 
-    st.markdown("### Ligatabell")
-    st.dataframe(df_view, use_container_width=True, hide_index=True)
-    st.caption("Välj lag under fliken ‘Lag’ för att se logo, matcher och trupp.")
+        df_view = df[cols].rename(
+            columns={
+                "position": "#",
+                "crest": "Logo",
+                "team_name": "Lag",
+                "played": "Spelade",
+                "won": "V",
+                "draw": "O",
+                "lost": "F",
+                "goal_difference": "MS",
+                "points": "Poäng",
+            }
+        )
+
+        st.markdown("### Ligatabell")
+
+        try:
+            st.dataframe(
+                df_view,
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Logo": st.column_config.ImageColumn("Logo", width="small"),
+                },
+            )
+        except Exception:
+            st.dataframe(df_view, use_container_width=True, hide_index=True)
+
+        st.caption("Välj lag under fliken ‘Lag’ för att se logo, matcher och trupp.")
 
 
 with tab2:
@@ -144,7 +162,6 @@ with tab2:
         st.error(str(e))
         st.stop()
 
-    # Behöver ev bytas efter klasserna är skapade
     team_options = {
         _get_field(t, "name", fallback_keys=["team_name"]): _get_field(t, "team_id", fallback_keys=["id"])
         for t in teams
@@ -196,41 +213,65 @@ with tab2:
             st.write(website)
 
     with right:
-        st.markdown("### Senaste / kommande 5 matcher")
-    
-        if matches:
-            match_rows = []
-            for m in matches:
-                if isinstance(m, dict):
-                    match_rows.append(
-                        {
-                            "utc_date": m.get("utc_date"),
-                            "status": m.get("status"),
-                            "home_team_name": m.get("home_team_name"),
-                            "away_team_name": m.get("away_team_name"),
-                            "score_home": m.get("score_home"),
-                            "score_away": m.get("score_away"),
-                        }
-                    )
-                else:
+        st.markdown("### Senaste / kommande matcher")
+
+        today = datetime.now(timezone.utc).date()
+        date_from = (today - timedelta(days=120)).isoformat()
+        date_to = (today + timedelta(days=120)).isoformat()
+
+        try:
+            matches = get_team_matches(team_id, dateFrom=date_from, dateTo=date_to, limit=60)
+        except TypeError:
+            matches = get_team_matches(team_id, limit=60)
+
+        match_rows = []
+        for m in (matches or []):
+            if isinstance(m, dict):
+                match_rows.append(
+                    {
+                        "utc_date": m.get("utc_date"),
+                        "status": m.get("status"),
+                        "home_team_name": m.get("home_team_name"),
+                        "away_team_name": m.get("away_team_name"),
+                        "score_home": m.get("score_home"),
+                        "score_away": m.get("score_away"),
+                    }
+                )
+            else:
+                full_time = {}
+                try:
+                    full_time = (m.score or {}).get("fullTime", {}) or {}
+                except Exception:
                     full_time = {}
-                    try:
-                        full_time = (m.score or {}).get("fullTime", {}) or {}
-                    except Exception:
-                        full_time = {}
 
-                    match_rows.append(
-                        {
-                            "utc_date": getattr(m, "utc_date", None),
-                            "status": getattr(m, "status", None),
-                            "home_team_name": getattr(getattr(m, "home_team", None), "name", None),
-                            "away_team_name": getattr(getattr(m, "away_team", None), "name", None),
-                            "score_home": full_time.get("home"),
-                            "score_away": full_time.get("away"),
-                        }
-                    )
+                match_rows.append(
+                    {
+                        "utc_date": getattr(m, "utc_date", None),
+                        "status": getattr(m, "status", None),
+                        "home_team_name": getattr(getattr(m, "home_team", None), "name", None),
+                        "away_team_name": getattr(getattr(m, "away_team", None), "name", None),
+                        "score_home": full_time.get("home"),
+                        "score_away": full_time.get("away"),
+                    }
+                )
 
-            mdf = pd.DataFrame(match_rows)[
+        if not match_rows:
+            st.info("Inga matcher hittades.")
+        else:
+            mdf = pd.DataFrame(match_rows)
+
+            # utc_date to datetime + filter
+            mdf["utc_date"] = pd.to_datetime(mdf["utc_date"], utc=True, errors="coerce")
+            mdf = mdf.dropna(subset=["utc_date"]).sort_values("utc_date")
+
+            now = pd.Timestamp.now(tz="UTC")
+
+            finished = mdf[mdf["utc_date"] <= now].tail(5)
+            upcoming = mdf[mdf["utc_date"] > now].head(5)
+
+            view = pd.concat([finished, upcoming], axis=0)
+
+            view = view[
                 ["utc_date", "status", "home_team_name", "away_team_name", "score_home", "score_away"]
             ].rename(
                 columns={
@@ -242,27 +283,92 @@ with tab2:
                     "score_away": "B",
                 }
             )
-            st.dataframe(mdf, use_container_width=True, hide_index=True)
-        else:
-            st.info("Inga matcher hittades.")
 
+            view["Datum"] = view["Datum"].dt.strftime("%Y-%m-%d %H:%M")
+
+            st.dataframe(view, use_container_width=True, hide_index=True)
+            st.caption("Visar senaste 5 matcher + nästa 5 matcher runt dagens datum.")
 
         st.markdown("### Trupp")
 
         if squad:
-            # Om Player-klassen finns och squad är dictar från API: använd Player.from_api_squad()
+            # Player dict
+            squad_rows = []
+
             if Player is not None and isinstance(squad[0], dict):
-                squad_rows = []
                 for p in squad:
                     try:
+                        
+                        role = (p.get("role") or "").lower()
+                        position_raw = (p.get("position") or "").lower()
+                        if "coach" in role or "coach" in position_raw:
+                            continue
+
                         player_obj = Player.from_api_squad(p)
                         squad_rows.append(player_obj.to_dict())
                     except Exception:
                         continue
+            else:
+                # Player missing fallback
+                for p in squad:
+                    if isinstance(p, dict):
+                        role = (p.get("role") or "").lower()
+                        position_raw = (p.get("position") or "").lower()
+                        if "coach" in role or "coach" in position_raw:
+                            continue
 
-                sdf = pd.DataFrame(squad_rows)[
-                    ["name", "display_position", "nationality", "date_of_birth", "age", "display_number"]
-                ].rename(
+                        squad_rows.append(
+                            {
+                                "name": p.get("name"),
+                                "display_position": p.get("position"),
+                                "nationality": p.get("nationality"),
+                                "date_of_birth": p.get("date_of_birth") or p.get("dateOfBirth"),
+                                "age": None,
+                                "display_number": p.get("shirtNumber") or p.get("shirt_number"),
+                            }
+                        )
+
+            if not squad_rows:
+                st.info("Ingen spelardata hittades i truppen.")
+            else:
+                # Positions
+                position_order = {
+                    "Goalkeeper": 1,
+                    "Defender": 2,
+                    "Midfielder": 3,
+                    "Forward": 4,
+                }
+
+                for r in squad_rows:
+                    pos = r.get("display_position") or r.get("position") or "Unknown"
+                    r["_pos_sort"] = position_order.get(pos, 99)
+
+                sdf = pd.DataFrame(squad_rows)
+
+                # Columns can exist without rows
+                for col in ["name", "display_position", "nationality", "date_of_birth", "age", "display_number"]:
+                    if col not in sdf.columns:
+                        sdf[col] = None
+
+                sdf = sdf.sort_values(by=["_pos_sort", "name"], na_position="last")
+
+                # 3) Shirt numbers
+                show_shirt_number = False
+                if "display_number" in sdf.columns:
+                    normalized = (
+                        sdf["display_number"]
+                        .astype(str)
+                        .str.strip()
+                        .replace({"None": "", "nan": "", "NaN": "", "N/A": ""})
+                    )
+                    if (normalized == "").all():
+                        show_shirt_number = False
+
+                cols_to_show = ["name", "display_position", "nationality", "date_of_birth", "age"]
+                if show_shirt_number:
+                    cols_to_show.append("display_number")
+
+                sdf_view = sdf[cols_to_show].rename(
                     columns={
                         "name": "Spelare",
                         "display_position": "Position",
@@ -272,22 +378,12 @@ with tab2:
                         "display_number": "Nr",
                     }
                 )
-                st.dataframe(sdf, use_container_width=True, hide_index=True)
-                st.caption("Spelare hämtas från squad. Gratis-API saknar ofta goals/assists/appearances.")
-            else:
-                # Fallback om Player inte kan importeras eller om squad inte är dict-format
-                sdf = pd.DataFrame(squad)[["name", "position", "nationality", "date_of_birth"]].rename(
-                    columns={
-                        "name": "Spelare",
-                        "position": "Position",
-                        "nationality": "Nationalitet",
-                        "date_of_birth": "Födelsedag",
-                    }
-                )
-                st.dataframe(sdf, use_container_width=True, hide_index=True)
-                st.caption("Trupp-data visas utan Player-modell.")
+
+                st.dataframe(sdf_view, use_container_width=True, hide_index=True)
+                st.caption("Truppen sorteras per position: målvakt → försvar → mittfält → anfall.")
         else:
             st.info("Ingen trupp-data hittades.")
+
 
 
 
@@ -313,23 +409,3 @@ with tab3:
         }
     )
     st.dataframe(sdf, use_container_width=True, hide_index=True)
-    st.divider()
-    st.markdown("### Välj lag från tabellen")
-
-    standings_team_options = {row["team_name"]: row["team_id"] for row in standings if row.get("team_name")}
-    chosen = st.radio("Lag:", list(standings_team_options.keys()), horizontal=True)
-
-    if chosen:
-        st.session_state.selected_team_id = standings_team_options[chosen]
-        st.info("Gå till fliken **Lag** för detaljer")
-
-    st.markdown("### Snabbval (logos)")
-    top = standings[:6]  # visa 6 lag i en rad
-    cols = st.columns(len(top))
-    for col, row in zip(cols, top):
-        with col:
-            if row.get("crest"):
-                st.image(row["crest"], width=55)
-            if st.button(row.get("team_name", "Lag"), key=f"team_pick_{row.get('team_id')}"):
-                st.session_state.selected_team_id = row.get("team_id")
-                st.info("Valt! Gå till fliken **Lag** ")
