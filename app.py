@@ -102,6 +102,13 @@ if not standings:
 leader = standings[0]
 st.info(f"🏆 Serieledare just nu: **{leader.get('team_name', '—')}** ({leader.get('points', '—')} p)")
 
+# Crest logos 
+crest_by_team = {}
+for row in standings:
+    name = row.get("team_name")
+    crest = row.get("crest")
+    if name and crest:
+        crest_by_team[name] = crest
 
 # Tabs
 tab1, tab2, tab3 = st.tabs(["📊 Tabell", "🏟 Lag", "🥇 Toppskyttar"])
@@ -110,48 +117,49 @@ tab1, tab2, tab3 = st.tabs(["📊 Tabell", "🏟 Lag", "🥇 Toppskyttar"])
 with tab1:
     df = pd.DataFrame(standings)
 
-        cols = [
-            "position",
-            "team_name",
-            "played",
-            "won",
-            "draw",
-            "lost",
-            "goal_difference",
-            "points",
-        ]
-        if "crest" in df.columns:
-            cols.insert(1, "crest")  # insert logo 
+    cols = [
+        "position",
+        "team_name",
+        "played",
+        "won",
+        "draw",
+        "lost",
+        "goal_difference",
+        "points",
+    ]
+    if "crest" in df.columns:
+        cols.insert(1, "crest")  # insert logo
 
-        df_view = df[cols].rename(
-            columns={
-                "position": "#",
-                "crest": "Logo",
-                "team_name": "Lag",
-                "played": "Spelade",
-                "won": "V",
-                "draw": "O",
-                "lost": "F",
-                "goal_difference": "MS",
-                "points": "Poäng",
-            }
+    df_view = df[cols].rename(
+        columns={
+            "position": "#",
+            "crest": "Logo",
+            "team_name": "Lag",
+            "played": "Spelade",
+            "won": "V",
+            "draw": "O",
+            "lost": "F",
+            "goal_difference": "MS",
+            "points": "Poäng",
+        }
+    )
+
+    st.markdown("### Ligatabell")
+
+    try:
+        st.dataframe(
+            df_view,
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Logo": st.column_config.ImageColumn("Logo", width="small"),
+            },
         )
+    except Exception:
+        st.dataframe(df_view, use_container_width=True, hide_index=True)
 
-        st.markdown("### Ligatabell")
+    st.caption("Välj lag under fliken ‘Lag’ för att se logo, matcher och trupp.")
 
-        try:
-            st.dataframe(
-                df_view,
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "Logo": st.column_config.ImageColumn("Logo", width="small"),
-                },
-            )
-        except Exception:
-            st.dataframe(df_view, use_container_width=True, hide_index=True)
-
-        st.caption("Välj lag under fliken ‘Lag’ för att se logo, matcher och trupp.")
 
 
 with tab2:
@@ -399,13 +407,33 @@ with tab3:
         st.info("Inga toppskyttar hittades (kan bero på plan/säsong).")
         st.stop()
 
-    sdf = pd.DataFrame(scorers)[["player_name", "team_name", "goals", "assists", "appearances"]].rename(
+    sdf = pd.DataFrame(scorers)[["player_name", "team_name", "goals", "assists", "appearances"]]
+
+    sdf["crest"] = sdf["team_name"].map(crest_by_team)
+
+    sdf = sdf.rename(
         columns={
             "player_name": "Spelare",
             "team_name": "Lag",
+            "crest": "Logo",
             "goals": "Mål",
             "assists": "Assist",
             "appearances": "Matcher",
         }
     )
-    st.dataframe(sdf, use_container_width=True, hide_index=True)
+
+    try:
+        st.dataframe(
+            sdf[["Logo", "Spelare", "Lag", "Mål", "Assist", "Matcher"]],
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "Logo": st.column_config.ImageColumn("Logo", width="small"),
+            },
+        )
+    except Exception:
+        st.dataframe(
+            sdf[["Logo", "Spelare", "Lag", "Mål", "Assist", "Matcher"]],
+            use_container_width=True,
+            hide_index=True,
+        )
