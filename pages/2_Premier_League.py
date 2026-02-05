@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 from datetime import datetime, timedelta, timezone
+import matplotlib.pyplot as plt
 
 
 from src.data_collection.api_client import (
@@ -84,6 +85,7 @@ tab1, tab2, tab3 = st.tabs(["📊 Tabell", "🏟 Lag", "🥇 Toppskyttar"])
 
 with tab1:
     df = pd.DataFrame(standings)
+    df.replace({None: "--", pd.NA: "--", float("nan"): "--"}, inplace=True)
 
     cols = ["position", "team_name", "played", "won", "draw", "lost", "goal_difference", "points"]
     if "crest" in df.columns:
@@ -106,6 +108,7 @@ with tab1:
             df_view,
             use_container_width=True,
             hide_index=True,
+            height=1000,
             column_config={
                 "Logo": st.column_config.ImageColumn("Logo", width="small")
             }
@@ -225,8 +228,12 @@ with tab2:
                         }
                     )
                     view["Datum"] = view["Datum"].dt.strftime("%Y-%m-%d %H:%M")
-
-                    st.dataframe(view, use_container_width=True, hide_index=True)
+                    st.dataframe(
+                        view,
+                        use_container_width=True,
+                        hide_index=True,
+                        height=500
+                    )
                     st.caption("Visar senaste 5 matcher + nästa 5 matcher runt dagens datum.")
             else:
                 st.info("Inga matcher hittades")
@@ -274,7 +281,13 @@ with tab2:
                     pos = r.get("display_position") or r.get("position") or "Unknown"
                     r["_pos_sort"] = position_order.get(pos, 99)
 
+                for row in squad_rows:
+                    if not row.get("age"):
+                        row["age"] = "not available"
+
+
                 sdf = pd.DataFrame(squad_rows)
+                sdf.replace({None: "--", pd.NA: "--", float("nan"): "--"}, inplace=True)
 
                 for col in ["name", "display_position", "nationality", "date_of_birth", "age", "display_number"]:
                     if col not in sdf.columns:
@@ -307,7 +320,12 @@ with tab2:
                     "display_number": "Nr",
                 })
 
-                st.dataframe(sdf_view, use_container_width=True, hide_index=True)
+                st.dataframe(
+                    sdf_view,
+                    use_container_width=True,
+                    hide_index=True,
+                    height=1000
+                )
                 st.caption("Truppen sorteras per position: målvakt → försvar → mittfält → anfall.")
         else:
             st.info("Ingen trupp-data hittades")
@@ -323,22 +341,25 @@ with tab3:
     
     if scorers:
         sdf = pd.DataFrame(scorers)[["player_name", "team_name", "goals", "assists", "appearances"]]
-        sdf["crest"] = sdf["team_name"].map(crest_by_team)
-
+        sdf["Logo"] = sdf["team_name"].map(crest_by_team)  # Lägg till före rename
         sdf = sdf.rename(columns={
-            "crest": "Logo",
             "player_name": "Spelare",
             "team_name": "Lag",
             "goals": "Mål",
             "assists": "Assist",
             "appearances": "Matcher",
         })
+        sdf = sdf.sort_values(by="Mål", ascending=False).head(20)
+
+        sdf.replace({None: "--", pd.NA: "--", float("nan"): "--"}, inplace=True)
+
 
         try:
             st.dataframe(
                 sdf[["Logo", "Spelare", "Lag", "Mål", "Assist", "Matcher"]],
                 use_container_width=True,
                 hide_index=True,
+                height=1000,
                 column_config={
                     "Logo": st.column_config.ImageColumn("Logo", width="small")
                 }
@@ -347,9 +368,18 @@ with tab3:
             st.dataframe(
                 sdf[["Logo", "Spelare", "Lag", "Mål", "Assist", "Matcher"]],
                 use_container_width=True,
+                height=1000,
                 hide_index=True
             )
     else:
         st.info("Inga toppskyttar hittades")
 
+    sdf["Mål per match"] = sdf["Mål"] / sdf["Matcher"]
+    top10 = sdf.sort_values("Mål", ascending=False).head(10)
+
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.barh(top10["Spelare"], top10["Mål per match"])
+    ax.set_xlabel("Mål per match")
+    ax.set_title("Topp 10 mål per match")
+    st.pyplot(fig)
     
