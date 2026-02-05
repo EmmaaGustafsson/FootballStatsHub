@@ -17,8 +17,13 @@ from src.components.menubar import show_menubar
 
 try:
     from src.models.player import Player
-except Exception:
+    from src.models.team import Team
+    from src.models.match import Match
+except Exception as e:
     Player = None
+    Match = None
+    Team = None
+    print(f"Warning: Could not import models: {e}")
 
 # Page config
 st.set_page_config(
@@ -59,18 +64,31 @@ def _get_field(x, key: str, default=None, fallback_keys: Optional[list[str]] = N
 
 # Load standings
 try:
-    standings = get_standings(competition_code)
+    standings_dicts = get_standings(competition_code)
 except ApiClientError as e:
     st.error(str(e))
     st.stop()
 
-if not standings:
+if not standings_dicts:
     st.warning("Ingen tabell-data hittades.")
     st.stop()
 
+
+standings_teams = []
+if Team is not None:
+    for s in standings_dicts:
+        try:
+            team = Team.from_api_standings(s)
+            standings_teams.append(team)
+        except Exception as e:
+            print(f"Warning: Could not create Team object: {e}")
+            standings_teams.append(s)  # Fallback till dict
+else:
+    standings_teams = standings_dicts
+
 # Build crest lookup (för logos i tabell + toppskyttar)
 crest_by_team = {}
-for row in standings:
+for row in standings_dicts:
     name = row.get("team_name")
     crest = row.get("crest")
     if name and crest:
@@ -103,36 +121,64 @@ st.divider()
 
 # TAB 1: TABELL
 if tab_choice == "📊 Tabell":
-    df = pd.DataFrame(standings)
-
-    cols = ["position", "team_name", "played", "won", "draw", "lost", "goal_difference", "points"]
-    if "crest" in df.columns:
-        cols.insert(1, "crest")  # logo efter position
-
-    df_view = df[cols].rename(columns={
-        "position": "#",
-        "crest": "Logo",
-        "team_name": "Lag",
-        "played": "M",
-        "won": "V",
-        "draw": "O",
-        "lost": "F",
-        "goal_difference": "MS",
-        "points": "P"
-    })
-
-    try:
-        st.dataframe(
-            df_view,
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "Logo": st.column_config.ImageColumn("Logo", width="small")
-            }
-        )
-    except Exception:
-        st.dataframe(df_view, use_container_width=True, hide_index=True)
-
+    if standings_teams and Team is not None and isinstance(standings_teams[0], Team):
+        df_data = [team.to_dict() for team in standings_teams]
+        df = pd.DataFrame(df_data)
+        
+        # Lägg till crest från lookup
+        df["crest"] = df["name"].map(crest_by_team)
+        
+        cols = ["position", "name", "played", "won", "draw", "lost", "goal_difference", "points"]
+        if "crest" in df.columns:
+            cols.insert(1, "crest")
+        
+        df_view = df[cols].rename(columns={
+            "position": "#",
+            "crest": "Logo",
+            "name": "Lag",  # ← "name" från Team.to_dict()
+            "played": "M",
+            "won": "V",
+            "draw": "O",
+            "lost": "F",
+            "goal_difference": "MS",
+            "points": "P"
+        })
+    else:
+        # Fallback: Använd dicts
+        df = pd.DataFrame(standings_dicts)
+        cols = ["position", "team_name", "played", "won", "draw", "lost", "goal_difference", "points"]
+        if "crest" in df.columns:
+            cols.insert(1, "crest")
+        
+        df_view = df[cols].rename(columns={
+            "position": "#",
+            "crest": "Logo",
+            "team_name": "Lag",
+            "played": "M",
+            "won": "V",
+            "draw": "O",
+            "lost": "F",
+            "goal_difference": "MS",
+            "points": "P"
+        })
+    
+    st.dataframe(
+        df_view,
+        width="content",
+        hide_index=True,
+        height='content',
+        column_config={
+            "Logo": st.column_config.ImageColumn("Logo", width="small"),
+            "#": st.column_config.NumberColumn("#", width=40),
+            "Lag": st.column_config.TextColumn("Lag", width=180),
+            "M": st.column_config.NumberColumn("M", width=40),
+            "V": st.column_config.NumberColumn("V", width=40),
+            "O": st.column_config.NumberColumn("O", width=40),
+            "F": st.column_config.NumberColumn("F", width=40),
+            "MS": st.column_config.NumberColumn("MS", width=50),
+            "P": st.column_config.NumberColumn("P", width=50),
+        }
+    )
 
 # TAB 2: LAG
 elif tab_choice == "🏟 Lag":
@@ -175,7 +221,8 @@ elif tab_choice == "🏟 Lag":
     if not team_id:
         st.info("Välj ett lag ovan för att se detaljer")
     else:
-    
+        st.divider()
+
     # Ladda team data
         try:
             info = get_team(team_id)
@@ -185,7 +232,7 @@ elif tab_choice == "🏟 Lag":
             date_to = (today + timedelta(days=120)).isoformat()
 
             try:
-                matches = get_team_matches(
+                matches_dicts = get_team_matches(
                     team_id,
                     dateFrom=date_from,
                     dateTo=date_to,
@@ -193,16 +240,27 @@ elif tab_choice == "🏟 Lag":
                 )
             except TypeError:
                 # fallback om API:t inte stödjer dateFrom/dateTo
-                matches = get_team_matches(team_id, limit=60)
-
+                matches_dicts = get_team_matches(team_id, limit=60)
+            
+            #Konverting till match objekt
+            matches = []
+            if Match is not None:
+                for m in matches_dicts:
+                    try:
+                        match_obj = Match.from_api_match(m)
+                        matches.append(match_obj)
+                    except Exception as e:
+                        print(f"Warning: Could not create Match object: {e}")
+                        matches.append(m)
+            else:
+                matches = matches_dicts
+            
             squad = get_squad(team_id)
 
         except ApiClientError as e:
             st.error(str(e))
             st.stop()
-    
 
-    
         left, right = st.columns([1, 2])
     
         # Laginfo
@@ -228,43 +286,58 @@ elif tab_choice == "🏟 Lag":
             
             if matches:
                 match_rows = []
+                
                 for m in matches:
-                    if isinstance(m, dict):
+                    if Match is not None and isinstance(m, Match):
+                        # Använder score display funktionen från match klassen
+                        match_rows.append({
+                            "utc_date": m.utc_date,
+                            "home_team_name": m.home_team.name,
+                            "away_team_name": m.away_team.name,
+                            "score": m.score_display()
+                        })
+                    
+                    elif isinstance(m, dict):
+                        status = m.get("status")
+                        score_home = m.get("score_home")
+                        score_away = m.get("score_away")
+                        
+                        if status == "FINISHED" and score_home is not None and score_away is not None:
+                            score_display = f"{score_home} - {score_away}"
+                        else:
+                            score_display = ""
+                        
                         match_rows.append({
                             "utc_date": m.get("utc_date"),
-                            "status": m.get("status"),
                             "home_team_name": m.get("home_team_name"),
                             "away_team_name": m.get("away_team_name"),
-                            "score_home": m.get("score_home"),
-                            "score_away": m.get("score_away"),
+                            "score": score_display
                         })
-
+                
                 if not match_rows:
                     st.info("Inga matcher hittades")
                 else:
                     mdf = pd.DataFrame(match_rows)
                     mdf["utc_date"] = pd.to_datetime(mdf["utc_date"], utc=True, errors="coerce")
                     mdf = mdf.dropna(subset=["utc_date"]).sort_values("utc_date")
-
+                    
                     now = pd.Timestamp.now(tz="UTC")
                     finished = mdf[mdf["utc_date"] <= now].tail(5)
                     upcoming = mdf[mdf["utc_date"] > now].head(5)
                     view = pd.concat([finished, upcoming], axis=0)
-
-                    view = view[["utc_date", "status", "home_team_name", "away_team_name", "score_home", "score_away"]].rename(
+                    
+                    view = view[["utc_date", "home_team_name", "away_team_name", "score"]].rename(
                         columns={
                             "utc_date": "Datum",
-                            "status": "Status",
                             "home_team_name": "Hemma",
                             "away_team_name": "Borta",
-                            "score_home": "H",
-                            "score_away": "B",
+                            "score": "Resultat"
                         }
                     )
                     view["Datum"] = view["Datum"].dt.strftime("%Y-%m-%d %H:%M")
-
-                    st.dataframe(view, use_container_width=True, hide_index=True)
-                    st.caption("Visar senaste 5 matcher + nästa 5 matcher runt dagens datum.")
+                    
+                    st.dataframe(view, width='stretch', hide_index=True)
+                    st.caption("Visar senaste 5 matcher + nästa 5 matcher.")
             else:
                 st.info("Inga matcher hittades")
 
@@ -344,7 +417,7 @@ elif tab_choice == "🏟 Lag":
                     "display_number": "Nr",
                 })
 
-                st.dataframe(sdf_view, use_container_width=True, hide_index=True)
+                st.dataframe(sdf_view, width='stretch', hide_index=True)
                 st.caption("Truppen sorteras per position: målvakt → försvar → mittfält → anfall.")
         else:
             st.info("Ingen trupp-data hittades")
@@ -376,7 +449,7 @@ elif tab_choice == "🥇 Toppskyttar":
         try:
             st.dataframe(
                 sdf[["Logo", "Spelare", "Lag", "Mål", "Assist", "Matcher"]],
-                use_container_width=True,
+                width='stretch',
                 hide_index=True,
                 column_config={
                     "Logo": st.column_config.ImageColumn("Logo", width="small")
@@ -385,7 +458,7 @@ elif tab_choice == "🥇 Toppskyttar":
         except Exception:
             st.dataframe(
                 sdf[["Logo", "Spelare", "Lag", "Mål", "Assist", "Matcher"]],
-                use_container_width=True,
+                width='stretch',
                 hide_index=True
             )
     else:
