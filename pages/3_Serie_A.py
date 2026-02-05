@@ -91,13 +91,32 @@ for row in standings_dicts:
     if name and crest:
         crest_by_team[name] = crest
 
+team_id = st.session_state[session_key]
+
+open_team_tab_key = f"open_team_tab_{competition_code}"
+should_open_team_tab = st.session_state.get(open_team_tab_key, False)
+
+if team_id and should_open_team_tab:
+    default_tab = 1
+    st.session_state[open_team_tab_key] = False
+else:
+    default_tab = 0
 
 # TABS
-tab1, tab2, tab3 = st.tabs(["📊 Tabell", "🏟 Lag", "🥇 Toppskyttar"])
+tab_choice = st.radio(
+    "Välj vy:",
+    ["📊 Tabell", "🏟 Lag", "🥇 Toppskyttar"],
+    horizontal=True,
+    label_visibility="collapsed",
+    key=f"tab_selector_{competition_code}",
+    index=default_tab
+)
+
+st.divider()
 
 
 # TAB 1: TABELL
-with tab1:
+if tab_choice == "📊 Tabell":
     if standings_teams and isinstance(standings_teams[0], Team):
         df_data = [team.to_dict() for team in standings_teams]
         df = pd.DataFrame(df_data)
@@ -136,23 +155,29 @@ with tab1:
             "goal_difference": "MS",
             "points": "P"
         })
-
-    try:
-        st.dataframe(
-            df_view,
-            width='content',
-            height='content',
-            hide_index=True,
-            column_config={
-                "Logo": st.column_config.ImageColumn("Logo", width="small")
-            }
-        )
-    except Exception:
-        st.dataframe(df_view, width='content', hide_index=True)
+    
+    st.dataframe(
+        df_view,
+        width='content',
+        hide_index=True,
+        height='content',
+        column_config={
+            "Logo": st.column_config.ImageColumn("Logo", width="small"),
+            "#": st.column_config.NumberColumn("#", width=40),
+            "Lag": st.column_config.TextColumn("Lag", width=180),
+            "M": st.column_config.NumberColumn("M", width=40),
+            "V": st.column_config.NumberColumn("V", width=40),
+            "O": st.column_config.NumberColumn("O", width=40),
+            "F": st.column_config.NumberColumn("F", width=40),
+            "MS": st.column_config.NumberColumn("MS", width=50),
+            "P": st.column_config.NumberColumn("P", width=50),
+        }
+    )
 
 
 # TAB 2: LAG
-with tab2:
+elif tab_choice == "🏟 Lag":
+    
     try:
         teams = get_teams(competition_code)
     except ApiClientError as e:
@@ -166,7 +191,21 @@ with tab2:
     team_options = {k: v for k, v in team_options.items() if k and v}
     team_names = sorted(team_options.keys())
     
-    selected_name = st.selectbox("Välj lag:", ["— välj —"] + team_names, index=0)
+    if team_id:
+        selected_team_name = None
+        for name, tid in team_options.items():
+            if tid == team_id:
+                selected_team_name = name
+                break
+        
+        if selected_team_name and selected_team_name in team_names:
+            default_index = team_names.index(selected_team_name) + 1
+        else:
+            default_index = 0
+    else:
+        default_index = 0
+
+    selected_name = st.selectbox("Välj lag:", ["— välj —"] + team_names, index=default_index)
     
     if selected_name != "— välj —":
         st.session_state[session_key] = team_options[selected_name]
@@ -377,7 +416,7 @@ with tab2:
             st.info("Ingen trupp-data hittades")
 
 # TAB 3: TOPPSKYTTAR
-with tab3:
+elif tab_choice == "🥇 Toppskyttar":
     st.markdown("### Toppskyttar")
     try:
         scorers = get_top_scorers(competition_code)
@@ -415,4 +454,3 @@ with tab3:
             )
     else:
         st.info("Inga toppskyttar hittades")
-    
