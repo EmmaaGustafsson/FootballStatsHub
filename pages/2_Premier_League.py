@@ -18,8 +18,13 @@ from src.components.menubar import show_menubar
 
 try:
     from src.models.player import Player
-except Exception:
+    from src.models.team import Team
+    from src.models.match import Match
+except Exception as e:
     Player = None
+    Match = None
+    Team = None
+    print(f"Warning: Could not import models: {e}")
 
 # Page config
 st.set_page_config(
@@ -60,65 +65,140 @@ def _get_field(x, key: str, default=None, fallback_keys: Optional[list[str]] = N
 
 # Load standings
 try:
-    standings = get_standings(competition_code)
+    standings_dicts = get_standings(competition_code)
 except ApiClientError as e:
     st.error(str(e))
     st.stop()
 
-if not standings:
+if not standings_dicts:
     st.warning("Ingen tabell-data hittades.")
     st.stop()
 
+# Konvertera till team objekt
+standings_teams = []
+if Team is not None:
+    for s in standings_dicts:
+        try:
+            team = Team.from_api_standings(s)
+            standings_teams.append(team)
+        except Exception as e:
+            print(f"Warning: Could not create Team object: {e}")
+            standings_teams.append(s)
+else:
+    standings_teams = standings_dicts
+
 # Build crest lookup (för logos i tabell + toppskyttar)
 crest_by_team = {}
-for row in standings:
+for row in standings_dicts:
     name = row.get("team_name")
     crest = row.get("crest")
     if name and crest:
         crest_by_team[name] = crest
 
+team_id = st.session_state[session_key]
+
+open_team_tab_key = f"open_team_tab_{competition_code}"
+should_open_team_tab = st.session_state.get(open_team_tab_key, False)
+
+if team_id and should_open_team_tab:
+    default_tab = 1
+    st.session_state[open_team_tab_key] = False
+else:
+    default_tab = 0
 
 # TABS
-tab1, tab2, tab3 = st.tabs(["📊 Tabell", "🏟 Lag", "🥇 Toppskyttar"])
+tab_choice = st.radio(
+    "Välj vy:",
+    ["📊 Tabell", "🏟 Lag", "🥇 Toppskyttar"],
+    horizontal=True,
+    label_visibility="collapsed",
+    key=f"tab_selector_{competition_code}",
+    index=default_tab
+)
+
+st.divider()
 
 # TAB 1: TABELL
 
-with tab1:
-    df = pd.DataFrame(standings)
-    df.replace({None: "--", pd.NA: "--", float("nan"): "--"}, inplace=True)
+if tab_choice == "📊 Tabell":
+    if standings_teams and Team is not None and isinstance(standings_teams[0], Team):
+        df_data = [team.to_dict() for team in standings_teams]
+        df = pd.DataFrame(df_data)
+        
+        # Lägg till crest från lookup
+        df["crest"] = df["name"].map(crest_by_team)
+        
+        cols = ["position", "name", "played", "won", "draw", "lost", "goal_difference", "points"]
+        if "crest" in df.columns:
+            cols.insert(1, "crest")
+        
+        df_view = df[cols].rename(columns={
+            "position": "#",
+            "crest": "Logo",
+            "name": "Lag",
+            "played": "M",
+            "won": "V",
+            "draw": "O",
+            "lost": "F",
+            "goal_difference": "MS",
+            "points": "P"
+        })
+    else:
+        # Fallback: Använd dicts
+        df = pd.DataFrame(standings_dicts)
+        cols = ["position", "team_name", "played", "won", "draw", "lost", "goal_difference", "points"]
+        if "crest" in df.columns:
+            cols.insert(1, "crest")
+        
+        df_view = df[cols].rename(columns={
+            "position": "#",
+            "crest": "Logo",
+            "team_name": "Lag",
+            "played": "M",
+            "won": "V",
+            "draw": "O",
+            "lost": "F",
+            "goal_difference": "MS",
+            "points": "P"
+        })
+    
+    left, right = st.columns([3, 1])  # 3:1 ratio för tabell vs graf
 
-    cols = ["position", "team_name", "played", "won", "draw", "lost", "goal_difference", "points"]
-    if "crest" in df.columns:
-        cols.insert(1, "crest")  # logo efter position
-
-    df_view = df[cols].rename(columns={
-        "position": "#",
-        "crest": "Logo",
-        "team_name": "Lag",
-        "played": "M",
-        "won": "V",
-        "draw": "O",
-        "lost": "F",
-        "goal_difference": "MS",
-        "points": "P"
-    })
-
-    try:
+    with left:
         st.dataframe(
             df_view,
-            use_container_width=True,
+            width='content',
             hide_index=True,
-            height=1000,
+            height='content',
             column_config={
-                "Logo": st.column_config.ImageColumn("Logo", width="small")
+                "Logo": st.column_config.ImageColumn("Logo", width="small"),
+                "#": st.column_config.NumberColumn("#", width=40),
+                "Lag": st.column_config.TextColumn("Lag", width=180),
+                "M": st.column_config.NumberColumn("M", width=40),
+                "V": st.column_config.NumberColumn("V", width=40),
+                "O": st.column_config.NumberColumn("O", width=40),
+                "F": st.column_config.NumberColumn("F", width=40),
+                "MS": st.column_config.NumberColumn("MS", width=50),
+                "P": st.column_config.NumberColumn("P", width=50),
             }
         )
-    except Exception:
-        st.dataframe(df_view, use_container_width=True, hide_index=True)
+
+    with right:
+        total_matches = df["played"].max()
+        max_possible_matches = 38  # Serie A har oftast 38 omgångar
+        percentage = (total_matches / max_possible_matches) * 100
+
+        fig, ax = plt.subplots(figsize=(4, 4))
+        ax.pie([percentage, 100 - percentage], labels=["Spelade", "Kvar"],
+            autopct="%1.1f%%", startangle=90, colors=["#4CAF50", "#CCCCCC"])
+        ax.set_title("Säsong spelad")
+        st.pyplot(fig)
+
 
 
 # TAB 2: LAG
-with tab2:
+elif tab_choice == "🏟 Lag":
+
     try:
         teams = get_teams(competition_code)
     except ApiClientError as e:
@@ -132,7 +212,21 @@ with tab2:
     team_options = {k: v for k, v in team_options.items() if k and v}
     team_names = sorted(team_options.keys())
     
-    selected_name = st.selectbox("Välj lag:", ["— välj —"] + team_names, index=0)
+    if team_id:
+        selected_team_name = None
+        for name, tid in team_options.items():
+            if tid == team_id:
+                selected_team_name = name
+                break
+        
+        if selected_team_name and selected_team_name in team_names:
+            default_index = team_names.index(selected_team_name) + 1
+        else:
+            default_index = 0
+    else:
+        default_index = 0
+
+    selected_name = st.selectbox("Välj lag:", ["— välj —"] + team_names, index=default_index)
     
     if selected_name != "— välj —":
         st.session_state[session_key] = team_options[selected_name]
@@ -161,6 +255,19 @@ with tab2:
             except TypeError:
                 # fallback om API:t inte stödjer dateFrom/dateTo
                 matches = get_team_matches(team_id, limit=60)
+
+            matches_dicts = matches
+            matches = []
+            if Match is not None:
+                for m in matches_dicts:
+                    try:
+                        match_obj = Match.from_api_match(m)
+                        matches.append(match_obj)
+                    except Exception as e:
+                        print(f"Warning: Could not create Match object: {e}")
+                        matches.append(m)
+            else:
+                matches = matches_dicts
 
             squad = get_squad(team_id)
 
@@ -194,47 +301,59 @@ with tab2:
             
             if matches:
                 match_rows = []
+                
                 for m in matches:
-                    if isinstance(m, dict):
+                    if Match is not None and isinstance(m, Match):
+                        match_rows.append({
+                            "utc_date": m.utc_date,
+                            "home_team_name": m.home_team.name,
+                            "away_team_name": m.away_team.name,
+                            "score": m.score_display() 
+                        })
+                    
+                    elif isinstance(m, dict):
+                        # Fallback för dict
+                        status = m.get("status")
+                        score_home = m.get("score_home")
+                        score_away = m.get("score_away")
+                        
+                        if status == "FINISHED" and score_home is not None and score_away is not None:
+                            score_display = f"{score_home} - {score_away}"
+                        else:
+                            score_display = ""
+                        
                         match_rows.append({
                             "utc_date": m.get("utc_date"),
-                            "status": m.get("status"),
                             "home_team_name": m.get("home_team_name"),
                             "away_team_name": m.get("away_team_name"),
-                            "score_home": m.get("score_home"),
-                            "score_away": m.get("score_away"),
+                            "score": score_display
                         })
-
+                
                 if not match_rows:
                     st.info("Inga matcher hittades")
                 else:
                     mdf = pd.DataFrame(match_rows)
                     mdf["utc_date"] = pd.to_datetime(mdf["utc_date"], utc=True, errors="coerce")
                     mdf = mdf.dropna(subset=["utc_date"]).sort_values("utc_date")
-
+                    
                     now = pd.Timestamp.now(tz="UTC")
                     finished = mdf[mdf["utc_date"] <= now].tail(5)
                     upcoming = mdf[mdf["utc_date"] > now].head(5)
                     view = pd.concat([finished, upcoming], axis=0)
-
-                    view = view[["utc_date", "status", "home_team_name", "away_team_name", "score_home", "score_away"]].rename(
+                    
+                   #tabell
+                    view = view[["utc_date", "home_team_name", "away_team_name", "score"]].rename(
                         columns={
                             "utc_date": "Datum",
-                            "status": "Status",
                             "home_team_name": "Hemma",
                             "away_team_name": "Borta",
-                            "score_home": "H",
-                            "score_away": "B",
+                            "score": "Resultat"
                         }
                     )
                     view["Datum"] = view["Datum"].dt.strftime("%Y-%m-%d %H:%M")
-                    st.dataframe(
-                        view,
-                        use_container_width=True,
-                        hide_index=True,
-                        height=500
-                    )
-                    st.caption("Visar senaste 5 matcher + nästa 5 matcher runt dagens datum.")
+                    
+                    st.dataframe(view, width='content', hide_index=True)
+                    st.caption("Visar senaste 5 matcher + nästa 5 matcher.")
             else:
                 st.info("Inga matcher hittades")
 
@@ -319,19 +438,19 @@ with tab2:
                     "age": "Ålder",
                     "display_number": "Nr",
                 })
-
                 st.dataframe(
                     sdf_view,
                     use_container_width=True,
                     hide_index=True,
                     height=1000
                 )
+
                 st.caption("Truppen sorteras per position: målvakt → försvar → mittfält → anfall.")
         else:
             st.info("Ingen trupp-data hittades")
 
 # TAB 3: TOPPSKYTTAR
-with tab3:
+elif tab_choice == "🥇 Toppskyttar":
     st.markdown("### Toppskyttar")
     try:
         scorers = get_top_scorers(competition_code)
@@ -352,12 +471,13 @@ with tab3:
         sdf = sdf.sort_values(by="Mål", ascending=False).head(20)
 
         sdf.replace({None: "--", pd.NA: "--", float("nan"): "--"}, inplace=True)
+        sdf = sdf.dropna(subset=["Spelare", "Lag", "Mål", "Matcher"])
 
 
         try:
             st.dataframe(
                 sdf[["Logo", "Spelare", "Lag", "Mål", "Assist", "Matcher"]],
-                use_container_width=True,
+                width='content',
                 hide_index=True,
                 height=1000,
                 column_config={
@@ -367,19 +487,17 @@ with tab3:
         except Exception:
             st.dataframe(
                 sdf[["Logo", "Spelare", "Lag", "Mål", "Assist", "Matcher"]],
-                use_container_width=True,
-                height=1000,
+                width='content',
                 hide_index=True
             )
+        sdf["Mål per match"] = sdf["Mål"] / sdf["Matcher"]
+        top10 = sdf.sort_values("Mål", ascending=False).head(10)
+
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.barh(top10["Spelare"], top10["Mål per match"])
+        ax.set_xlabel("Mål per match")
+        ax.set_title("Topp 10 mål per match")
+        st.pyplot(fig)
+
     else:
         st.info("Inga toppskyttar hittades")
-
-    sdf["Mål per match"] = sdf["Mål"] / sdf["Matcher"]
-    top10 = sdf.sort_values("Mål", ascending=False).head(10)
-
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.barh(top10["Spelare"], top10["Mål per match"])
-    ax.set_xlabel("Mål per match")
-    ax.set_title("Topp 10 mål per match")
-    st.pyplot(fig)
-    
