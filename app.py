@@ -11,14 +11,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ═══════════════════════════════════════════════════════════
-# MENUBAR
-# ═══════════════════════════════════════════════════════════
 show_menubar(current_page=None)  # Ingen sida är aktiv på startsidan
 
-# ═══════════════════════════════════════════════════════════
-# CONTENT
-# ═══════════════════════════════════════════════════════════
 st.markdown("""
     <div style="text-align: center; padding: 4rem 0;">
         <h1 style="font-size: 4rem; margin-bottom: 1rem;">

@@ -11,7 +11,7 @@ class Match:
         matchday: Optional[int],
         home_team: Team,
         away_team: Team,
-        score: Dict[str, Dict[str, Dict[int]]],
+        score: Dict[str, Dict[str, Optional[int]]],
     ):
         self.match_id: int = match_id
         self.utc_date = datetime.fromisoformat(
@@ -22,7 +22,7 @@ class Match:
         self.matchday = matchday
         self.home_team = home_team
         self.away_team = away_team
-        self.score: Dict[str, Dict[str, Dict[int]]] = score
+        self.score: Dict[str, Dict[str, Optional[int]]] = score
 
         if "fullTime" not in self.score:
             raise ValueError("Score must contain 'fullTime'")
@@ -52,6 +52,46 @@ class Match:
         away = self.score["fullTime"]["away"]
         return f"{home} - {away}"
     
+    @classmethod # Skapar objekt av API datan
+    def from_api_match(cls, data: dict) -> 'Match':
+        
+        # Skapar Team objekt för hemma och borta
+        home_team = Team(
+            team_id=data.get("home_team_id", 0),
+            name=data.get("home_team_name", "Unknown"),
+            short_name=data.get("home_team_short_name", ""),
+            tla=data.get("home_team_tla", ""),
+            crest=data.get("home_team_crest", ""),
+            venue="",
+            founded=None
+        )
+        
+        away_team = Team(
+            team_id=data.get("away_team_id", 0),
+            name=data.get("away_team_name", "Unknown"),
+            short_name=data.get("away_team_short_name", ""),
+            tla=data.get("away_team_tla", ""),
+            crest=data.get("away_team_crest", ""),
+            venue="",
+            founded=None
+        )
+        
+        # Skapar Match objekt
+        return cls(
+            match_id=data.get("match_id", 0),
+            utc_date=data.get("utc_date", datetime.now().isoformat()),
+            status=data.get("status", "SCHEDULED"),
+            matchday=data.get("matchday"),
+            home_team=home_team,
+            away_team=away_team,
+            score={
+                "fullTime": {
+                    "home": data.get("score_home"),
+                    "away": data.get("score_away")
+                }
+            }
+        )
+
     def to_dict(self) -> dict:
         """Konvertera till dictionary"""
         return {
