@@ -449,7 +449,7 @@ elif tab_choice == "🥇 Toppskyttar":
         try:
             st.dataframe(
                 sdf[["Logo", "Spelare", "Lag", "Mål", "Assist", "Matcher"]],
-                width='stretch',
+                width='content',
                 hide_index=True,
                 column_config={
                     "Logo": st.column_config.ImageColumn("Logo", width="small")
