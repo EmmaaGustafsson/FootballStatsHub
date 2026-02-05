@@ -1,6 +1,7 @@
 import pandas as pd
 import streamlit as st
 from datetime import datetime, timedelta, timezone
+import matplotlib.pyplot as plt
 
 
 from src.data_collection.api_client import (
@@ -156,23 +157,38 @@ if tab_choice == "📊 Tabell":
             "points": "P"
         })
     
-    st.dataframe(
-        df_view,
-        width='content',
-        hide_index=True,
-        height='content',
-        column_config={
-            "Logo": st.column_config.ImageColumn("Logo", width="small"),
-            "#": st.column_config.NumberColumn("#", width=40),
-            "Lag": st.column_config.TextColumn("Lag", width=180),
-            "M": st.column_config.NumberColumn("M", width=40),
-            "V": st.column_config.NumberColumn("V", width=40),
-            "O": st.column_config.NumberColumn("O", width=40),
-            "F": st.column_config.NumberColumn("F", width=40),
-            "MS": st.column_config.NumberColumn("MS", width=50),
-            "P": st.column_config.NumberColumn("P", width=50),
-        }
-    )
+    left, right = st.columns([3, 1])  # 3:1 ratio för tabell vs graf
+
+    with left:
+        st.dataframe(
+            df_view,
+            width='content',
+            hide_index=True,
+            height='content',
+            column_config={
+                "Logo": st.column_config.ImageColumn("Logo", width="small"),
+                "#": st.column_config.NumberColumn("#", width=40),
+                "Lag": st.column_config.TextColumn("Lag", width=180),
+                "M": st.column_config.NumberColumn("M", width=40),
+                "V": st.column_config.NumberColumn("V", width=40),
+                "O": st.column_config.NumberColumn("O", width=40),
+                "F": st.column_config.NumberColumn("F", width=40),
+                "MS": st.column_config.NumberColumn("MS", width=50),
+                "P": st.column_config.NumberColumn("P", width=50),
+            }
+        )
+
+
+    with right:
+        total_matches = df["played"].max()
+        max_possible_matches = 38  # Serie A har oftast 38 omgångar
+        percentage = (total_matches / max_possible_matches) * 100
+
+        fig, ax = plt.subplots(figsize=(4, 4))
+        ax.pie([percentage, 100 - percentage], labels=["Spelade", "Kvar"],
+            autopct="%1.1f%%", startangle=90, colors=["#4CAF50", "#CCCCCC"])
+        ax.set_title("Säsong spelad")
+        st.pyplot(fig)        
 
 
 # TAB 2: LAG
@@ -377,7 +393,13 @@ elif tab_choice == "🏟 Lag":
                     pos = r.get("display_position") or r.get("position") or "Unknown"
                     r["_pos_sort"] = position_order.get(pos, 99)
 
+                for row in squad_rows:
+                    if not row.get("age"):
+                        row["age"] = "not available"
+
                 sdf = pd.DataFrame(squad_rows)
+                sdf.replace({None: "--", pd.NA: "--", float("nan"): "--"}, inplace=True)
+
 
                 for col in ["name", "display_position", "nationality", "date_of_birth", "age", "display_number"]:
                     if col not in sdf.columns:
@@ -409,8 +431,13 @@ elif tab_choice == "🏟 Lag":
                     "age": "Ålder",
                     "display_number": "Nr",
                 })
+                st.dataframe(
+                    sdf_view,
+                    use_container_width=True,
+                    hide_index=True,
+                    height=1000
+                )
 
-                st.dataframe(sdf_view, width='content', hide_index=True)
                 st.caption("Truppen sorteras per position: målvakt → försvar → mittfält → anfall.")
         else:
             st.info("Ingen trupp-data hittades")
@@ -426,22 +453,26 @@ elif tab_choice == "🥇 Toppskyttar":
     
     if scorers:
         sdf = pd.DataFrame(scorers)[["player_name", "team_name", "goals", "assists", "appearances"]]
-        sdf["crest"] = sdf["team_name"].map(crest_by_team)
-
+        sdf["Logo"] = sdf["team_name"].map(crest_by_team)  # Lägg till före rename
         sdf = sdf.rename(columns={
-            "crest": "Logo",
             "player_name": "Spelare",
             "team_name": "Lag",
             "goals": "Mål",
             "assists": "Assist",
             "appearances": "Matcher",
         })
+        sdf = sdf.sort_values(by="Mål", ascending=False).head(20)
+
+        sdf.replace({None: "--", pd.NA: "--", float("nan"): "--"}, inplace=True)
+        sdf = sdf.dropna(subset=["Spelare", "Lag", "Mål", "Matcher"])
+
 
         try:
             st.dataframe(
                 sdf[["Logo", "Spelare", "Lag", "Mål", "Assist", "Matcher"]],
                 width='content',
                 hide_index=True,
+                height=1000,
                 column_config={
                     "Logo": st.column_config.ImageColumn("Logo", width="small")
                 }
@@ -452,5 +483,14 @@ elif tab_choice == "🥇 Toppskyttar":
                 width='content',
                 hide_index=True
             )
+        sdf["Mål per match"] = sdf["Mål"] / sdf["Matcher"]
+        top10 = sdf.sort_values("Mål", ascending=False).head(10)
+
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.barh(top10["Spelare"], top10["Mål per match"])
+        ax.set_xlabel("Mål per match")
+        ax.set_title("Topp 10 mål per match")
+        st.pyplot(fig)
+
     else:
         st.info("Inga toppskyttar hittades")
