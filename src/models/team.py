@@ -72,6 +72,12 @@ class Team:
             return 0.0
         return round(self.goals_for / self.played, 2)
     
+    @property
+    def goals_conceded_per_game(self) -> float:
+        if self.played == 0:
+            return 0.0
+        return round(self.goals_against / self.played, 2)
+    
     @classmethod
     def from_api_standings(cls, data: dict) -> 'Team':
         """Skapa Team från standings API response"""
@@ -107,7 +113,11 @@ class Team:
             'win_percentage': self.win_percentage,
             'goal_difference': self.goal_difference,
             'goals_per_game': self.goals_per_game,
-            'form': self.form
+            'form': self.form,
+            'win_percentage' : self.win_percentage,
+            'goals_per_game' : self.goals_per_game,
+            'goals_conceded_per_game' :self.goals_conceded_per_game
+
         }
 
     def __repr__(self) -> str:
