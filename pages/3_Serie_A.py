@@ -15,6 +15,11 @@ from src.data_collection.api_client import (
 
 from src.components.menubar import show_menubar
 
+# ===============================
+# NYTT: import för favoriter
+# ===============================
+from src.utils.storage import load_favorites, save_favorites
+
 try:
     from src.models.player import Player
 except Exception:
@@ -37,6 +42,12 @@ session_key = f"selected_team_id_{competition_code}"
 # Session state
 if session_key not in st.session_state:
     st.session_state[session_key] = None
+
+# ===============================
+# NYTT: Session state – favoriter
+# ===============================
+if "favorites" not in st.session_state:
+    st.session_state["favorites"] = load_favorites()
 
 # Helper function
 from typing import Optional
@@ -173,7 +184,32 @@ with tab2:
             crest = _get_field(info, "crest")
             if crest:
                 st.image(crest, width=120)
-            st.write(f"**{_get_field(info, 'name', default='—')}**")
+
+                        # ----------------------------------------------
+            # NYTT: Lagets namn + hjärtknapp
+            # ----------------------------------------------
+            col_name, col_heart = st.columns([4, 1])
+
+            with col_name:
+                st.write(f"**{_get_field(info, 'name', default='—')}**")
+
+            with col_heart:
+                is_favorite = team_id in st.session_state["favorites"]
+                heart_icon = "❤️" if is_favorite else "🤍"
+
+                if st.button(heart_icon, key=f"fav_{team_id}"):
+                    if is_favorite:
+                        st.session_state["favorites"].remove(team_id)
+                    else:
+                        st.session_state["favorites"].append(team_id)
+
+                    # Spara till favorites.json
+                    save_favorites(st.session_state["favorites"])
+
+                    # Uppdatera sidan så hjärtat byts direkt
+                    st.rerun()
+
+            # Resten av laginfo är oförändrad
             venue = _get_field(info, "venue")
             if venue:
                 st.write(f"📍 Arena: {venue}")
