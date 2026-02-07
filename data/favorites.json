@@ -1,6 +1,19 @@
 {
   "favorites": [
-    77
+    {
+      "team_id": 77,
+      "team_name": "Athletic Club",
+      "crest": "https://crests.football-data.org/77.png",
+      "league_code": "PD",
+      "page": "pages/1_La_Liga.py"
+    },
+    {
+      "team_id": 397,
+      "team_name": "Brighton & Hove Albion FC",
+      "crest": "https://crests.football-data.org/397.png",
+      "league_code": "PL",
+      "page": "pages/2_Premier_League.py"
+    }
   ],
-  "saved_at": "2026-02-06T18:25:17.080740"
+  "saved_at": "2026-02-07T16:57:49.797571"
 }
