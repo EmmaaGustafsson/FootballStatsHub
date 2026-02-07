@@ -55,6 +55,13 @@ if session_key not in st.session_state:
 if "favorites" not in st.session_state:
     st.session_state["favorites"] = load_favorites()
 
+# ===============================
+# NYTT – öppna Lag-tabben från Favorites
+# ===============================
+open_team_tab_key = f"open_team_tab_{competition_code}"
+if open_team_tab_key not in st.session_state:
+    st.session_state[open_team_tab_key] = False
+
 # Helper function
 from typing import Optional
 
@@ -105,17 +112,6 @@ for row in standings_dicts:
     if name and crest:
         crest_by_team[name] = crest
 
-
-team_id = st.session_state[session_key]
-
-open_team_tab_key = f"open_team_tab_{competition_code}"
-should_open_team_tab = st.session_state.get(open_team_tab_key, False)
-
-if team_id and should_open_team_tab:
-    default_tab = 1
-    st.session_state[open_team_tab_key] = False
-else:
-    default_tab = 0
 
 # TABS
 tab_choice = st.radio(
@@ -305,20 +301,28 @@ elif tab_choice == "🏟 Lag":
                 st.write(f"**{_get_field(info, 'name', default='—')}**")
 
             with col_heart:
-                is_favorite = team_id in st.session_state["favorites"]
+                favorites = st.session_state["favorites"]
+
+                is_favorite = any(f["team_id"] == team_id for f in favorites)
                 heart_icon = "❤️" if is_favorite else "🤍"
 
-                if st.button(heart_icon, key=f"fav_{team_id}"):
-                    if is_favorite:
-                        st.session_state["favorites"].remove(team_id)
-                    else:
-                        st.session_state["favorites"].append(team_id)
+            if st.button(heart_icon, key=f"fav_{team_id}"):
 
-                    # Spara till favorites.json
-                    save_favorites(st.session_state["favorites"])
+                if is_favorite:
+                    favorites = [f for f in favorites if f["team_id"] != team_id]
+                else:
+                    favorites.append({
+                        "team_id": team_id,
+                        "team_name": _get_field(info, "name"),
+                        "crest": _get_field(info, "crest"),
+                        "league_code": competition_code,
+                        "page": "pages/1_La_Liga.py"
+                    })
 
-                    # Uppdatera sidan så hjärtat byts direkt
-                    st.rerun()
+                st.session_state["favorites"] = favorites
+                save_favorites(favorites)
+                st.rerun()
+            
             # Resten av laginfo (oförändrad)
             venue = _get_field(info, "venue")
             if venue:
@@ -536,3 +540,5 @@ elif tab_choice == "🥇 Toppskyttar":
 
     else:
         st.info("Inga toppskyttar hittades")
+
+    

@@ -300,20 +300,27 @@ elif tab_choice == "🏟 Lag":
                 st.write(f"**{_get_field(info, 'name', default='—')}**")
 
             with col_heart:
-                is_favorite = team_id in st.session_state["favorites"]
+                favorites = st.session_state["favorites"]
+
+                is_favorite = any(f["team_id"] == team_id for f in favorites)
                 heart_icon = "❤️" if is_favorite else "🤍"
 
-                if st.button(heart_icon, key=f"fav_{team_id}"):
-                    if is_favorite:
-                        st.session_state["favorites"].remove(team_id)
-                    else:
-                        st.session_state["favorites"].append(team_id)
+            if st.button(heart_icon, key=f"fav_{team_id}"):
 
-                    # Spara till favorites.json
-                    save_favorites(st.session_state["favorites"])
+                if is_favorite:
+                    favorites = [f for f in favorites if f["team_id"] != team_id]
+                else:
+                    favorites.append({
+                        "team_id": team_id,
+                        "team_name": _get_field(info, "name"),
+                        "crest": _get_field(info, "crest"),
+                        "league_code": competition_code,
+                        "page": "pages/3_Serie_A.py"
+                    })
 
-                    # Uppdatera sidan så hjärtat byts direkt
-                    st.rerun()
+                st.session_state["favorites"] = favorites
+                save_favorites(favorites)
+                st.rerun()
 
             # Resten av laginfo är oförändrad
             venue = _get_field(info, "venue")
@@ -530,3 +537,4 @@ elif tab_choice == "🥇 Toppskyttar":
 
     else:
         st.info("Inga toppskyttar hittades")
+    
