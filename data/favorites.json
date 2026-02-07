@@ -1,26 +1,3 @@
 {
-  "favorites": [
-    {
-      "team_id": 77,
-      "team_name": "Athletic Club",
-      "crest": "https://crests.football-data.org/77.png",
-      "league_code": "PD",
-      "page": "pages/1_La_Liga.py"
-    },
-    {
-      "team_id": 397,
-      "team_name": "Brighton & Hove Albion FC",
-      "crest": "https://crests.football-data.org/397.png",
-      "league_code": "PL",
-      "page": "pages/2_Premier_League.py"
-    },
-    {
-      "team_id": 487,
-      "team_name": "AC Pisa 1909",
-      "crest": "https://crests.football-data.org/487.png",
-      "league_code": "SA",
-      "page": "pages/3_Serie_A.py"
-    }
-  ],
-  "saved_at": "2026-02-07T21:53:10.536369"
+  "favorites": []
 }
