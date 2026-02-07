@@ -42,8 +42,8 @@ show_menubar(current_page="la_liga")
 
 # Page content
 st.title("La Liga")
-
 competition_code = "PD"
+
 # Session state
 session_key = f"selected_team_id_{competition_code}"
 if session_key not in st.session_state:
@@ -54,13 +54,6 @@ if session_key not in st.session_state:
 # ===============================
 if "favorites" not in st.session_state:
     st.session_state["favorites"] = load_favorites()
-
-# ===============================
-# NYTT – öppna Lag-tabben från Favorites
-# ===============================
-open_team_tab_key = f"open_team_tab_{competition_code}"
-if open_team_tab_key not in st.session_state:
-    st.session_state[open_team_tab_key] = False
 
 # Helper function
 from typing import Optional
@@ -91,7 +84,7 @@ if not standings_dicts:
     st.warning("Ingen tabell-data hittades.")
     st.stop()
 
-
+# Konvertera till team objekt
 standings_teams = []
 if Team is not None:
     for s in standings_dicts:
@@ -112,6 +105,16 @@ for row in standings_dicts:
     if name and crest:
         crest_by_team[name] = crest
 
+team_id = st.session_state[session_key]
+
+open_team_tab_key = f"open_team_tab_{competition_code}"
+should_open_team_tab = st.session_state.get(open_team_tab_key, False)
+
+if team_id and should_open_team_tab:
+    default_tab = 1
+    st.session_state[open_team_tab_key] = False
+else:
+    default_tab = 0
 
 # TABS
 tab_choice = st.radio(
@@ -219,14 +222,12 @@ elif tab_choice == "🏟 Lag":
     team_names = sorted(team_options.keys())
     
     if team_id:
-        # Find team name from team_id
         selected_team_name = None
         for name, tid in team_options.items():
             if tid == team_id:
                 selected_team_name = name
                 break
         
-        # Set dropdown to selected team
         if selected_team_name and selected_team_name in team_names:
             default_index = team_names.index(selected_team_name) + 1  # +1 for "— välj —"
         else:
@@ -244,7 +245,6 @@ elif tab_choice == "🏟 Lag":
     if not team_id:
         st.info("Välj ett lag ovan för att se detaljer")
     else:
-        st.divider()
 
     # Ladda team data
         try:
@@ -255,7 +255,7 @@ elif tab_choice == "🏟 Lag":
             date_to = (today + timedelta(days=120)).isoformat()
 
             try:
-                matches_dicts = get_team_matches(
+                matches = get_team_matches(
                     team_id,
                     dateFrom=date_from,
                     dateTo=date_to,
@@ -263,9 +263,10 @@ elif tab_choice == "🏟 Lag":
                 )
             except TypeError:
                 # fallback om API:t inte stödjer dateFrom/dateTo
-                matches_dicts = get_team_matches(team_id, limit=60)
+                matches = get_team_matches(team_id, limit=60)
             
             #Konverting till match objekt
+            matches_dicts = matches
             matches = []
             if Match is not None:
                 for m in matches_dicts:
@@ -352,6 +353,7 @@ elif tab_choice == "🏟 Lag":
                         })
                     
                     elif isinstance(m, dict):
+                        # Fallback för dict
                         status = m.get("status")
                         score_home = m.get("score_home")
                         score_away = m.get("score_away")
@@ -380,6 +382,7 @@ elif tab_choice == "🏟 Lag":
                     upcoming = mdf[mdf["utc_date"] > now].head(5)
                     view = pd.concat([finished, upcoming], axis=0)
                     
+                    #tabell
                     view = view[["utc_date", "home_team_name", "away_team_name", "score"]].rename(
                         columns={
                             "utc_date": "Datum",

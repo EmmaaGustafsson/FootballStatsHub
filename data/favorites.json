@@ -13,7 +13,14 @@
       "crest": "https://crests.football-data.org/397.png",
       "league_code": "PL",
       "page": "pages/2_Premier_League.py"
+    },
+    {
+      "team_id": 487,
+      "team_name": "AC Pisa 1909",
+      "crest": "https://crests.football-data.org/487.png",
+      "league_code": "SA",
+      "page": "pages/3_Serie_A.py"
     }
   ],
-  "saved_at": "2026-02-07T16:57:49.797571"
+  "saved_at": "2026-02-07T21:53:10.536369"
 }
