@@ -3,6 +3,8 @@ import streamlit as st
 from datetime import datetime, timedelta, timezone
 import matplotlib.pyplot as plt
 
+
+
 from src.data_collection.api_client import (
     ApiClientError,
     get_standings,
@@ -501,8 +503,12 @@ elif tab_choice == "🥇 Toppskyttar":
         st.stop()
     
     if scorers:
-        sdf = pd.DataFrame(scorers)[["player_name", "team_name", "goals", "assists", "appearances"]]
-        sdf["Logo"] = sdf["team_name"].map(crest_by_team)  # Lägg till före rename
+        sdf = pd.DataFrame(scorers)[
+            ["player_name", "team_name", "goals", "assists", "appearances"]
+        ]
+
+        # Logo
+        sdf["Logo"] = sdf["team_name"].map(crest_by_team)
         sdf = sdf.rename(columns={
             "player_name": "Spelare",
             "team_name": "Lag",
@@ -510,10 +516,11 @@ elif tab_choice == "🥇 Toppskyttar":
             "assists": "Assist",
             "appearances": "Matcher",
         })
-        sdf = sdf.sort_values(by="Mål", ascending=False).head(20)
 
-        sdf.replace({None: "--", pd.NA: "--", float("nan"): "--"}, inplace=True)
-        sdf = sdf.dropna(subset=["Spelare", "Lag", "Mål", "Matcher"])
+        sdf = sdf.sort_values(by="Mål", ascending=False).head(10)
+        sdf["Assist"] = sdf["Assist"].fillna(0).astype(int)
+        sdf["Matcher"] = sdf["Matcher"].fillna(0).astype(int)
+        sdf = sdf.dropna(subset=["Spelare", "Lag", "Mål"])
 
 
         try:
@@ -521,7 +528,7 @@ elif tab_choice == "🥇 Toppskyttar":
                 sdf[["Logo", "Spelare", "Lag", "Mål", "Assist", "Matcher"]],
                 width='content',
                 hide_index=True,
-                height=1000,
+                height=400,
                 column_config={
                     "Logo": st.column_config.ImageColumn("Logo", width="small")
                 }
@@ -532,14 +539,6 @@ elif tab_choice == "🥇 Toppskyttar":
                 width='content',
                 hide_index=True
             )
-        sdf["Mål per match"] = sdf["Mål"] / sdf["Matcher"]
-        top10 = sdf.sort_values("Mål", ascending=False).head(10)
-
-        fig, ax = plt.subplots(figsize=(10, 5))
-        ax.barh(top10["Spelare"], top10["Mål per match"])
-        ax.set_xlabel("Mål per match")
-        ax.set_title("Topp 10 mål per match")
-        st.pyplot(fig)
 
     else:
         st.info("Inga toppskyttar hittades")
