@@ -7,7 +7,7 @@ def show_menubar(current_page: str = None):
     
     """
     
-    # CSS för fast navbar
+    # CSS för fast menubar
     st.markdown("""
         <style>
         /* Dölj Streamlit's default header och sidebar */
@@ -136,6 +136,8 @@ def show_menubar(current_page: str = None):
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("")
 
+    st.divider()
+
     # If user typed something (at least 2 chars), show dropdown
     if search_input and len(search_input) >= 2:
         results = search_teams(search_input)
@@ -182,3 +184,4 @@ def show_menubar(current_page: str = None):
             st.warning(f"Inga lag hittades för '{search_input}'")
             st.info("Prova att söka på en del av lagnamnet")
             st.divider()
+
