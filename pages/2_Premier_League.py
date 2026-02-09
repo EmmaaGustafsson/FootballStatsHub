@@ -484,7 +484,7 @@ elif tab_choice == "🏟 Lag":
                 })
                 st.dataframe(
                     sdf_view,
-                    use_container_width=True,
+                    width='stretch',
                     hide_index=True,
                     height=1000
                 )
