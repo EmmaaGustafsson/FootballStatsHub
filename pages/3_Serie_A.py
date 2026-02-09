@@ -3,7 +3,6 @@ import streamlit as st
 from datetime import datetime, timedelta, timezone
 import matplotlib.pyplot as plt
 
-
 from src.data_collection.api_client import (
     ApiClientError,
     get_standings,
@@ -168,9 +167,9 @@ if tab_choice == "📊 Tabell":
             "points": "P"
         })
     
-    left, right = st.columns([3, 1])  # 3:1 ratio för tabell vs graf
+    col1, col2, spacer = st.columns([2, 1.2, 0.8])
 
-    with left:
+    with col1:
         st.dataframe(
             df_view,
             width='content',
@@ -189,17 +188,16 @@ if tab_choice == "📊 Tabell":
             }
         )
 
-
-    with right:
+    with col2:
         total_matches = df["played"].max()
-        max_possible_matches = 38  # Serie A har oftast 38 omgångar
+        max_possible_matches = 38
         percentage = (total_matches / max_possible_matches) * 100
 
         fig, ax = plt.subplots(figsize=(4, 4))
         ax.pie([percentage, 100 - percentage], labels=["Spelade", "Kvar"],
             autopct="%1.1f%%", startangle=90, colors=["#4CAF50", "#CCCCCC"])
         ax.set_title("Säsong spelad")
-        st.pyplot(fig)        
+        st.pyplot(fig)       
 
 
 # TAB 2: LAG
@@ -532,6 +530,4 @@ elif tab_choice == "🥇 Toppskyttar":
                 hide_index=True
             )
 
-    else:
-        st.info("Inga toppskyttar hittades")
     

@@ -4,7 +4,6 @@ from datetime import datetime, timedelta, timezone
 import matplotlib.pyplot as plt
 
 
-
 from src.data_collection.api_client import (
     ApiClientError,
     get_standings,
@@ -543,5 +542,4 @@ elif tab_choice == "🥇 Toppskyttar":
 
     else:
         st.info("Inga toppskyttar hittades")
-
-    
+ 
