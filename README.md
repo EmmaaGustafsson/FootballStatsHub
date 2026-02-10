@@ -47,11 +47,7 @@ FootballStatsHub/
 └── tests/                        # Unit tests for models, storage, validation
 
 Trello Board: 
-
 https://trello.com/b/Gewy5oue/python-grupp-6
-
-Mötesplaneringar: 
-https://docs.google.com/spreadsheets/d/1ju5tqYaS3KAJoA75Sm3BeLPPEpWEKzanZW1iFv2gqwc/edit?usp=sharing
 
 Github
 https://github.com/EmmaaGustafsson/FootballStatsHub.git
