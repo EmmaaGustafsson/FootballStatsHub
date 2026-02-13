@@ -18,7 +18,7 @@ The project aggregates team data, squad lists, matches, and top scorers in a cle
 # Who did what?
 
 Andy: Created the data models for each team and match, along with dedicated classes that define exactly what information we need from the API for each case.
-Also contributed to setting up GitHub Actions to automatically test the code on every push from team members, helping ensure code quality and smoother collaboration across the group.
+Also contributed to setting up GitHub Actions to automatically Pytest the code on every push and pull requests from team members, helping ensure code quality and smoother collaboration across the group.
 
 # Project Structure
 
