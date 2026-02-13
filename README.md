@@ -27,7 +27,7 @@ Emma:
 - Ensured that navigation from favorite teams leads to the correct team view (same view as via liga → lag)
 - Responsible for storing and retrieving favorite teams and that favorites are saved between sessions
 - Integrated the favorite function using the same navigation logic as the search function
-- Wrote unit tests for favorite storage as well as tests for models and data validation
+- Wrote unit tests for favorite storage as well as tests for models
 - Made minor adjustments to the league pages to support favorite marking and correct navigation
 
 # Project Structure
