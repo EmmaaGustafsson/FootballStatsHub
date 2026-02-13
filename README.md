@@ -40,6 +40,7 @@ Filip:
 - UI/UX implementation for team details, match history, squad, and statistics
 - Data presentation and formatting optimization (dataframes, column configurations)
 - Session state management for cross-page team selection
+- Helped implementing the 3 different league pages
 
 Spirit:
 
