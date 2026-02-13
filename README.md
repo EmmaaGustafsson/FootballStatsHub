@@ -20,6 +20,16 @@ The project aggregates team data, squad lists, matches, and top scorers in a cle
 Andy: Created the data models for each team and match, along with dedicated classes that define exactly what information we need from the API for each case.
 Also contributed to setting up GitHub Actions to automatically Pytest the code on every push and pull requests from team members, helping ensure code quality and smoother collaboration across the group.
 
+Emma: 
+
+- Implemented favorites functionality that allows teams to be marked as favorites via the league pages
+- Created most code in a separate Favorites page where the user's favorite teams are displayed
+- Ensured that navigation from favorite teams leads to the correct team view (same view as via liga → lag)
+- Responsible for storing and retrieving favorite teams and that favorites are saved between sessions
+- Integrated the favorite function using the same navigation logic as the search function
+- Wrote unit tests for favorite storage as well as tests for models and data validation
+- Made minor adjustments to the league pages to support favorite marking and correct navigation
+
 # Project Structure
 
 ```bash
