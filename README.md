@@ -15,6 +15,11 @@ The project aggregates team data, squad lists, matches, and top scorers in a cle
 - Pie chart showing how much of the season has been played.
 - Automatic caching to speed up API calls.
 
+# Who did what?
+
+Andy: Created the data models for each team and match, along with dedicated classes that define exactly what information we need from the API for each case.
+Also contributed to setting up GitHub Actions to automatically test the code on every push from team members, helping ensure code quality and smoother collaboration across the group.
+
 # Project Structure
 
 ```bash
