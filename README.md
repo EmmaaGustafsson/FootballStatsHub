@@ -30,6 +30,19 @@ Emma:
 - Wrote unit tests for favorite storage as well as tests for models
 - Made minor adjustments to the league pages to support favorite marking and correct navigation
 
+Filip:
+
+- Object-oriented data modeling (Team, Match, Player classes with factory methods)
+- Core model methods implementation (score_display(), win_percentage, goals_per_game)
+- Multi-page application architecture with horizontal navigation
+- Global search functionality with live autocomplete across all leagues
+- Reusable component development (navbar with integrated search)
+- UI/UX implementation for team details, match history, squad, and statistics
+- Data presentation and formatting optimization (dataframes, column configurations)
+- Session state management for cross-page team selection
+
+Spirit:
+
 # Project Structure
 
 ```bash
