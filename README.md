@@ -49,31 +49,47 @@ Spirit:
 ```bash
 FootballStatsHub/
 │
-├── app.py                         # Entry point
-├── requirements.txt              # Dependencies
-├── README.md                     # Project description
+├── app.py                          # Landing page / entry point
+├── requirements.txt                # Python dependencies
+├── README.md                       # Project documentation
+├── .env                            # Environment variables (API keys)
+├── .gitignore                      # Git ignore rules
 │
-├── pages/                        # Streamlit pages (La Liga, PL, Serie A, Favourites)
-│   ├── 1_La_Liga.py
-│   ├── 2_Premier_League.py
-│   ├── 3_Serie_A.py
-│   └── 4_Favourites.py
+├── pages/                          # Streamlit multi-page application
+│   ├── 1_La_Liga.py                # La Liga page with standings, teams, top scorers
+│   ├── 2_Premier_League.py         # Premier League page
+│   ├── 3_Serie_A.py                # Serie A page
+│   └── 4_Favourites.py             # Favorites management (placeholder)
 │
-├── data/                         # Local data files
-│   ├── favorites.json            # Saved favourite teams
-│   └── lookup/                   # Team ID mapping for leagues (.csv + .json)
+├── data/                           # Local data storage
+│   ├── cache/                      # API response cache
+│   ├── lookup/                     # Team ID mappings for leagues
+│   └── favorites.json              # User's saved favorite teams
 │
-├── scripts/
-│   └── snapshot_teams.py         # Fetches and stores team data to /data
+├── scripts/                        # Utility scripts
+│   └── snapshot_teams.py           # Fetches and stores team data locally
 │
-├── src/                          # All application logic (modularized)
-│   ├── components/               # UI components (navbar, search)
-│   ├── models/                   # Classes for Team, Match, Player
-│   ├── utils/                    # Helper modules (cache, logger, storage, validation)
-│   ├── data_collection/          # API client, mock data
-│   └── visualization/            # Charts and visualizations
+├── src/                            # Core application logic
+│   ├── components/                 # Reusable UI components
+│   │   ├── menubar.py              # Horizontal navigation bar with search
+│   │   └── search.py               # Global team search across all leagues
+│   │
+│   ├── data_collection/            # API integration layer
+│   │   └── api_client.py           # Football-Data.org API client
+│   │
+│   ├── models/                     # Object-oriented data models
+│   │   ├── match.py                # Match class with score_display(), winner()
+│   │   ├── player.py               # Player class with age calculation
+│   │   └── team.py                 # Team class with win_percentage, goals_per_game
+│   │
+│   └── utils/                      # Helper utilities
+│       ├── cache.py                # Response caching
+│       └── storage.py              # Local data storage helpers
 │
-└── tests/                        # Unit tests for models, storage, validation
+└── tests/                          # Unit tests
+├── test_models.py              # Tests for Team, Match, Player models
+├── test_storage.py             # Tests for data storage
+└── test_validation.py          # Input validation tests
 
 Trello Board: 
 https://trello.com/b/Gewy5oue/python-grupp-6
