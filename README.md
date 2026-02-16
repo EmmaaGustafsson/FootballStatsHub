@@ -43,6 +43,14 @@ Filip:
 - Helped implementing the 3 different league pages
 
 Spirit:
+- Built an MVP for Streamlit application, - League → Standings → Team → Matches/Squad → Top scorers.
+- Implemented core UI logic for league pages
+- Developed app.py structure and navigation before the multi-page layout
+- Created and mapped team ID lookup files for all three leagues
+- Built parts of the API client
+- Created a TTL caching to reduce API load
+- Added fallback handling when data was missing
+- Added a visualization (pie chart) for each league’s standings page.
 
 # Project Structure
 
